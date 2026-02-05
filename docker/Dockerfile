@@ -66,26 +66,10 @@ RUN pip install -r requirements.txt
 COPY . /app
 
 # Download RealESRGAN checkpoint if not present
+COPY docker/download_realesrgan.py /tmp/download_realesrgan.py
 RUN mkdir -p /app/modules/hunyuan/paint/ckpt && \
-    python3 << 'EOF'
-import os
-from huggingface_hub import hf_hub_download
-
-ckpt_path = '/app/modules/hunyuan/paint/ckpt/RealESRGAN_x4plus.pth'
-if not os.path.exists(ckpt_path):
-    print('Downloading RealESRGAN checkpoint...')
-    hf_hub_download(
-        repo_id='xinntao/Real-ESRGAN',
-        filename='RealESRGAN_x4plus.pth',
-        local_dir='/app/modules/hunyuan/paint/ckpt',
-        local_dir_use_symlinks=False
-    )
-    print('RealESRGAN checkpoint downloaded successfully')
-else:
-    print('RealESRGAN checkpoint already exists')
-if os.path.exists(ckpt_path):
-    print(f'File size: {os.path.getsize(ckpt_path) / 1024 / 1024:.1f} MB')
-EOF
+    python3 /tmp/download_realesrgan.py && \
+    rm /tmp/download_realesrgan.py
 
 # Compile C++/CUDA extensions for Hunyuan paint pipeline
 # Note: These must be compiled after requirements.txt is installed (torch needed for CUDA extension build)
