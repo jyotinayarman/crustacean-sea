@@ -55,6 +55,11 @@ class MyFastAPI(FastAPI):
 
 @asynccontextmanager
 async def lifespan(app: MyFastAPI) -> AsyncIterator[None]:
+    sys.stdout.flush()
+    sys.stderr.flush()
+    mem = psutil.virtual_memory()
+    logger.info(f"STARTUP: Memory available: {mem.available / 1024**3:.1f}GB / {mem.total / 1024**3:.1f}GB")
+    sys.stdout.flush()
     try:
         from modules.hunyuan.paint.utils.torchvision_fix import apply_fix
         apply_fix()
@@ -63,8 +68,12 @@ async def lifespan(app: MyFastAPI) -> AsyncIterator[None]:
 
     try:
         logger.info("Loading Hunyuan3D shape pipeline...")
+        sys.stdout.flush()
         torch.cuda.empty_cache()
         gc.collect()
+        mem = psutil.virtual_memory()
+        logger.info(f"Before checkpoint load: {mem.available / 1024**3:.1f}GB free")
+        sys.stdout.flush()
         import sys
         import modules.hunyuan.shape as _hy3dshape
         sys.modules["hy3dshape"] = _hy3dshape
@@ -84,16 +93,23 @@ async def lifespan(app: MyFastAPI) -> AsyncIterator[None]:
             gc.collect()
             if torch.cuda.is_available():
                 torch.cuda.empty_cache()
+            mem = psutil.virtual_memory()
             logger.warning(
-                "Safetensors format not found. Using .ckpt format which loads ~7GB at once; "
-                "OOM 'Killed' is common without enough RAM+swap. Options: (1) Add 8GB+ swap: "
-                "sudo fallocate -l 8G /swapfile && sudo mkswap /swapfile && sudo swapon /swapfile; "
-                "(2) Convert to safetensors on a 16GB+ machine: python convert_ckpt_to_safetensors.py"
+                f"Safetensors format not found. Using .ckpt format which loads ~7GB at once. "
+                f"Current free RAM: {mem.available / 1024**3:.1f}GB. "
+                f"OOM 'Killed' is common without enough RAM+swap. "
+                f"Options: (1) Add 8GB+ swap; (2) Convert to safetensors on a 16GB+ machine"
             )
+            sys.stdout.flush()
+        logger.info(f"Loading checkpoint (safetensors={use_safetensors})...")
+        sys.stdout.flush()
         app.state.hunyuan_shape = Hunyuan3DDiTFlowMatchingPipeline.from_pretrained(
             settings.hunyuan_model_path,
             use_safetensors=use_safetensors
         )
+        mem = psutil.virtual_memory()
+        logger.info(f"After checkpoint load: {mem.available / 1024**3:.1f}GB free")
+        sys.stdout.flush()
         if getattr(settings, "hunyuan_enable_flashvdm", False):
             mc = getattr(settings, "hunyuan_mc_algo", "mc")
             app.state.hunyuan_shape.enable_flashvdm(mc_algo=mc)

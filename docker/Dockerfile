@@ -70,8 +70,18 @@ COPY . /app
 
 # 1. Compile mesh_inpaint_processor (pybind11 C++ extension)
 WORKDIR /app/modules/hunyuan/paint/DifferentiableRenderer
-RUN c++ -O3 -Wall -shared -std=c++11 -fPIC `python3 -m pybind11 --includes` mesh_inpaint_processor.cpp -o mesh_inpaint_processor`python3-config --extension-suffix` || \
-    (echo "Warning: mesh_inpaint_processor compilation failed (has fallback)" && touch mesh_inpaint_processor.so)
+RUN set -eux && \
+    echo "=== Compiling mesh_inpaint_processor ===" && \
+    INCLUDES=$(python3 -m pybind11 --includes) && \
+    SUFFIX=$(python3-config --extension-suffix) && \
+    echo "Python includes: $INCLUDES" && \
+    echo "Extension suffix: $SUFFIX" && \
+    echo "Source file exists: $(test -f mesh_inpaint_processor.cpp && echo 'YES' || echo 'NO')" && \
+    c++ -O3 -Wall -shared -std=c++11 -fPIC $INCLUDES mesh_inpaint_processor.cpp -o mesh_inpaint_processor$SUFFIX 2>&1 && \
+    echo "=== Compilation successful ===" && \
+    ls -lh mesh_inpaint_processor*.so && \
+    echo "=== Verification complete ===" || \
+    (echo "=== ERROR: mesh_inpaint_processor compilation FAILED ===" && exit 1)
 
 # 2. Compile custom_rasterizer (CUDA extension) - REQUIRED for paint pipeline
 WORKDIR /app/modules/hunyuan/paint/custom_rasterizer
