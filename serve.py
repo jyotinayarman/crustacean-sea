@@ -1,5 +1,6 @@
 import gc
 import os
+import sys
 import argparse
 import asyncio
 from io import BytesIO
@@ -11,6 +12,7 @@ from contextlib import asynccontextmanager
 
 import torch
 import uvicorn
+import psutil
 from loguru import logger
 from fastapi import FastAPI, UploadFile, File, APIRouter, Form
 from fastapi.responses import Response, StreamingResponse
@@ -74,7 +76,6 @@ async def lifespan(app: MyFastAPI) -> AsyncIterator[None]:
         mem = psutil.virtual_memory()
         logger.info(f"Before checkpoint load: {mem.available / 1024**3:.1f}GB free")
         sys.stdout.flush()
-        import sys
         import modules.hunyuan.shape as _hy3dshape
         sys.modules["hy3dshape"] = _hy3dshape
         from modules.hunyuan import Hunyuan3DDiTFlowMatchingPipeline
